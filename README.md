@@ -2,7 +2,22 @@
 
 **AcuariTest Pro** es una herramienta integral, gratuita y de código abierto diseñada para acuaristas que buscan un control total sobre la salud de sus acuarios. Especialmente optimizada para el mantenimiento de Guppys, pero adaptable a cualquier ecosistema de agua dulce.
 
-🚀 **[ACCEDER A LA APLICACIÓN](AQUÍ_VA_EL_ENLACE_QUE_TE_DIO_GITHUB_PAGES)**
+🚀 **[ACCEDER A LA APLICACIÓN]((https://scblay.github.io/AcuariTest-Pro/))**
+
+---
+
+## 📸 Vista previa
+<table>
+  <tr>
+    <td><img src="foto1.png" width="200" alt="Vista Principal"></td>
+    <td><img src="foto2.png" width="200" alt="Test y Semáforo"></td>
+  </tr>
+  <tr>
+    <td><img src="foto3.png" width="200" alt="Calculadoras"></td>
+    <td><img src="foto4.png" width="200" alt="Historial"></td>
+    <td><img src="foto5.png" width="200" alt="Información"></td>
+  </tr>
+</table>
 
 ---
 
