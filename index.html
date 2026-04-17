@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AcuariTest Pro - Guppy Master Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --p-green: #28a745; --p-orange: #ffc107; --p-red: #dc3545; --p-blue: #007bff; --accent: #007bff; --bg: #f4f7f6; --dark: #2c3e50; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding-bottom: 60px; color: #333; }
+        .tabs { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 100; justify-content: space-around; }
+        .tab-btn { background: none; border: none; color: white; padding: 15px; cursor: pointer; font-weight: bold; flex: 1; font-size: 0.75rem; }
+        .tab-btn.active { background: var(--accent); border-bottom: 4px solid white; }
+        .content { display: none; padding: 15px; max-width: 900px; margin: auto; animation: fadeIn 0.3s; }
+        .content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .card { background: white; padding: 18px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 15px; }
+        h2 { color: var(--dark); font-size: 0.9rem; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
+        .input-group { display: flex; flex-direction: column; margin-bottom: 10px; }
+        label { margin-bottom: 4px; font-weight: 600; color: #555; font-size: 0.7rem; }
+        input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.9rem; background: #fff; font-family: inherit; }
+        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+        .main-btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 8px; color: white; transition: 0.2s; }
+        .calc-result { margin-top: 10px; padding: 12px; border-radius: 8px; background: #f0f4f8; font-weight: bold; text-align: center; border: 1px solid #d1d9e6; font-size: 0.9rem; transition: 0.3s; }
+        .fish-row { display: flex; gap: 5px; margin-bottom: 8px; }
+        .extra-section { border-top: 2px solid #eee; margin-top: 15px; padding-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="tabs">
+    <button class="tab-btn active" onclick="openTab('test')">📝 Test</button>
+    <button class="tab-btn" onclick="openTab('historial')">📜 Historial</button>
+    <button class="tab-btn" onclick="openTab('calc')">🧮 Calc</button>
+    <button class="tab-btn" onclick="openTab('info')">ℹ️ Info</button>
+</div>
+
+<div id="test" class="content active">
+    <div class="card">
+        <h2>🐠 Acuario: <select id="selector_acuario" onchange="cambiarAcuario()"></select> <button onclick="nuevoAcuario()" style="border:none; background:none; cursor:pointer;">➕</button></h2>
+        <div class="input-group"><label>Fecha y Hora</label><input type="datetime-local" id="fecha"></div>
+        <div class="grid-inputs" id="inputs_dinamicos"></div>
+        <div class="extra-section">
+            <div class="grid-inputs">
+                <div class="input-group">
+                    <label>CO2</label>
+                    <select id="in_co2" onchange="toggleDropchecker()">
+                        <option value="No">No</option>
+                        <option value="Sí">Sí</option>
+                    </select>
+                </div>
+                <div class="input-group" id="drop_group" style="display:none">
+                    <label>Dropchecker</label>
+                    <select id="in_drop">
+                        <option value="Azul">Azul (Poco)</option>
+                        <option value="Verde" selected>Verde (OK)</option>
+                        <option value="Amarillo">Amarillo (Mucho)</option>
+                    </select>
+                </div>
+                <div class="input-group"><label>Horas Luz</label><input type="number" id="in_luz_h" step="0.5" placeholder="h"></div>
+                <div class="input-group"><label>Intensidad %</label><input type="number" id="in_luz_i" placeholder="%"></div>
+            </div>
+            <div class="input-group" style="margin-top:10px;">
+                <label>Notas / Observaciones</label>
+                <textarea id="in_notas" rows="3" placeholder="Ej: Poda, cambio de agua..."></textarea>
+            </div>
+        </div>
+        <button class="main-btn" style="background:var(--accent)" onclick="guardarRegistro()">💾 Guardar Resultados</button>
+    </div>
+</div>
+
+<div id="historial" class="content">
+    <div class="card"><h2>📈 Gráfica</h2><div style="height:250px"><canvas id="grafica"></canvas></div></div>
+    <div class="card">
+        <h2>📜 Registros</h2>
+        <div id="lista_historial" style="max-height: 250px; overflow-y: auto; font-size: 0.8rem; margin-bottom: 15px;"></div>
+        <button class="main-btn" style="background:var(--p-green)" onclick="exportarCSV()">📊 Exportar a Excel</button>
+        <button class="main-btn" style="background:var(--p-blue)" onclick="document.getElementById('file-input').click()">📥 Importar Backup</button>
+        <input type="file" id="file-input" style="display:none" onchange="importarCSV(event)">
+    </div>
+</div>
+
+<div id="calc" class="content">
+    <div class="card">
+        <h2>📏 Volumen del Acuario</h2>
+        <div class="grid-inputs">
+            <input type="number" id="l_a" placeholder="Ancho (cm)" oninput="autoLitros()">
+            <input type="number" id="l_f" placeholder="Fondo (cm)" oninput="autoLitros()">
+            <input type="number" id="l_h" placeholder="Alto (cm)" oninput="autoLitros()">
+        </div>
+        <div class="calc-result" id="res_litros">Litros Netos: 0L</div>
+    </div>
+
+    <div class="card">
+        <h2>🐟 Población Mixta</h2>
+        <div class="input-group"><label>Litros Disponibles</label><input type="number" id="p_litros" oninput="autoPeces()"></div>
+        <div id="contenedor_peces">
+            <div class="fish-row">
+                <input type="number" class="f_cant" placeholder="Nº" oninput="autoPeces()">
+                <input type="number" class="f_tam" placeholder="cm" oninput="autoPeces()">
+                <button onclick="this.parentElement.remove(); autoPeces();">❌</button>
+            </div>
+        </div>
+        <button class="main-btn" style="background:#6c757d; font-size:0.8rem;" onclick="addFishRow()">+ Añadir pez</button>
+        <div class="calc-result" id="res_peces">Capacidad: 0 / 0L</div>
+    </div>
+
+    <div class="card">
+        <h2>🌿 Abonos y Aditivos</h2>
+        <div class="input-group">
+            <label>Producto</label>
+            <select id="prod_tipo" onchange="autoAbono(); checkSemaforoObj();">
+                <optgroup label="Seachem">
+                    <option value="seachem_n">Nitrogen (N)</option>
+                    <option value="seachem_p">Phosphorus (P)</option>
+                    <option value="seachem_k">Potassium (K)</option>
+                    <option value="seachem_iron">Iron (Fe)</option>
+                    <option value="seachem_neutral">Neutral Regulator (pH 7.0)</option>
+                    <option value="seachem_builder">Reef Builder (KH)</option>
+                    <option value="seachem_excel">Excel (Carbono)</option>
+                    <option value="seachem_prime">Prime (Anticloro)</option>
+                </optgroup>
+                <optgroup label="JBL / Sera">
+                    <option value="jbl_n">ProScape N</option>
+                    <option value="jbl_p">ProScape P</option>
+                    <option value="jbl_k">ProScape K</option>
+                    <option value="sera_n">Flore N</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="grid-inputs">
+            <div class="input-group"><label>Litros</label><input type="number" id="a_litros" oninput="autoAbono()"></div>
+            <div class="input-group" id="group_obj"><label>Objetivo (ppm)</label><input type="number" id="a_obj" value="10" oninput="autoAbono(); checkSemaforoObj();"></div>
+        </div>
+        <div class="calc-result" id="res_abono">Selecciona producto</div>
+    </div>
+
+    <div class="card">
+        <h2>💊 Medicamentos habituales</h2>
+        <div class="grid-inputs">
+            <div class="input-group">
+                <label>Medicamento</label>
+                <select id="med_tipo" onchange="autoMed()">
+                    <option value="sera_omnipur">Sera Omnipur A</option>
+                    <option value="sera_baktopur">Sera Baktopur</option>
+                    <option value="sera_costapur">Sera Costapur</option>
+                    <option value="jbl_punktol">JBL Punktol Plus</option>
+                    <option value="seachem_paraguard">Seachem ParaGuard</option>
+                    <option value="sera_tremazol">Sera Tremazol</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Litros Acuario</label>
+                <input type="number" id="med_litros" placeholder="L" oninput="autoMed()">
+            </div>
+        </div>
+        <div class="calc-result" id="res_med">Introduce litros</div>
+    </div>
+</div>
+
+<div id="info" class="content">
+    <div class="card">
+        <h2>ℹ️ Guía e Información</h2>
+        <p>✅ <strong>100% Gratis:</strong> Esta aplicación es totalmente gratuita y libre de anuncios para siempre.</p>
+        
+        <p>🌐 <strong>Sin Internet:</strong> Funciona de forma local en tu dispositivo. No necesitas conexión para registrar tus datos.</p>
+        
+        <p>💾 <strong>Sistema de Backup:</strong> Tus datos se guardan en el navegador. Usa el botón <strong>"Exportar a Excel"</strong> regularmente para descargar un archivo de respaldo. Si cambias de móvil o limpias el navegador, podrás recuperar todo usando <strong>"Importar Backup"</strong>.</p>
+        
+        <p>⚠️ <strong>Aviso Importante:</strong> Antes de añadir cualquier producto al agua (abonos, medicamentos o acondicionadores), <strong>debes revisar siempre las instrucciones de uso del fabricante</strong> en el envase original.</p>
+        
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+        
+        <p style="font-size: 0.8rem; color: #666;">📝 <strong>Nota:</strong> Es posible que existan errores de cálculo o visualización. Estamos mejorando la aplicación continuamente para ofrecerte la mejor experiencia.</p>
+        
+        <p style="text-align: center; margin-top: 20px;">
+            <a href="https://github.com/SCBlay" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: bold;">
+                📂 Visita mi perfil en GitHub
+            </a>
+        </p>
+    </div>
+</div>
+
+<script>
+    const CONFIG = {
+        temp: { label: 'Temp', min: 24, max: 28, crit_min: 20, crit_max: 32 },
+        ph: { label: 'pH', min: 7.0, max: 8.2, crit_min: 6.0, crit_max: 9.0 },
+        gh: { label: 'GH', min: 10, max: 20, crit_min: 5, crit_max: 30 },
+        kh: { label: 'KH', min: 5, max: 12, crit_min: 2, crit_max: 20 },
+        nh4: { label: 'Amonio', min: 0, max: 0, crit_min: -1, crit_max: 0.25 },
+        no2: { label: 'Nitrito', min: 0, max: 0, crit_min: -1, crit_max: 0.1 },
+        no3: { label: 'Nitrato', min: 5, max: 20, crit_min: 0, crit_max: 50 },
+        po4: { label: 'Fosfato', min: 0.1, max: 1.0, crit_min: 0, crit_max: 3.0 },
+        k: { label: 'Potasio', min: 5, max: 15, crit_min: 2, crit_max: 30 },
+        fe: { label: 'Hierro', min: 0.05, max: 0.2, crit_min: 0, crit_max: 0.5 },
+        tds: { label: 'TDS', min: 200, max: 500, crit_min: 100, crit_max: 800 }
+    };
+
+    const PRODUCTOS = {
+        seachem_n: { type: 'diff', param: 'no3', calc: (d, l) => (d * l) / 10.5, safety: 25 },
+        seachem_p: { type: 'diff', param: 'po4', calc: (d, l) => (d * l) / 0.19, safety: 2 },
+        seachem_k: { type: 'diff', param: 'k', calc: (d, l) => (d * l) / 50, safety: 30 },
+        seachem_iron: { type: 'diff', param: 'fe', calc: (d, l) => (d * l * 200) / 0.1, safety: 0.5 },
+        seachem_neutral: { type: 'fixed', label: 'Neutral Reg', dosis: '5g / 40L' },
+        seachem_builder: { type: 'fixed', label: 'Builder', dosis: '3g / 150L' },
+        seachem_excel: { type: 'fixed', label: 'Excel', dosis: '5ml / 200L' },
+        seachem_prime: { type: 'fixed', label: 'Prime', dosis: '1ml / 40L' },
+        jbl_n: { type: 'diff', param: 'no3', calc: (d, l) => (d * l) / 10, safety: 25 },
+        sera_n: { type: 'diff', param: 'no3', calc: (d, l) => (d * l) / 5, safety: 25 }
+    };
+
+    const MEDICAMENTOS = {
+        sera_omnipur: { label: 'Omnipur A', ratio: 1/20, unit: 'ml' }, // 1ml cada 20L
+        sera_baktopur: { label: 'Baktopur', ratio: 1/20, unit: 'ml' },
+        sera_costapur: { label: 'Costapur', ratio: 1/40, unit: 'ml' },
+        jbl_punktol: { label: 'Punktol', ratio: 10/100, unit: 'ml' },
+        seachem_paraguard: { label: 'ParaGuard', ratio: 5/40, unit: 'ml' },
+        sera_tremazol: { label: 'Tremazol', ratio: 1/15, unit: 'ml' }
+    };
+
+    let acuarioActual = localStorage.getItem('acu_last') || "Principal";
+    let miGrafica;
+
+    window.onload = () => { iniciarApp(); };
+
+    function checkSemaforoInput(id, val) {
+        const cfg = CONFIG[id];
+        const el = document.getElementById('in_' + id);
+        if (!val) { el.style.background = "#fff"; return; }
+        const v = parseFloat(val);
+        if (v >= cfg.min && v <= cfg.max) el.style.background = "#d4edda";
+        else if (v < cfg.crit_min || v > cfg.crit_max) el.style.background = "#f8d7da";
+        else el.style.background = "#fff3cd";
+    }
+
+    function autoLitros() {
+        const neto = ((document.getElementById('l_a').value || 0) * (document.getElementById('l_f').value || 0) * (document.getElementById('l_h').value || 0) / 1000) * 0.85;
+        const val = neto.toFixed(1);
+        document.getElementById('res_litros').innerText = `Litros Netos: ${val}L`;
+        document.getElementById('a_litros').value = val;
+        document.getElementById('p_litros').value = val;
+        document.getElementById('med_litros').value = val;
+        autoAbono(); autoMed(); autoPeces();
+    }
+
+    function autoMed() {
+        const med = MEDICAMENTOS[document.getElementById('med_tipo').value];
+        const l = parseFloat(document.getElementById('med_litros').value) || 0;
+        const res = document.getElementById('res_med');
+        if(l <= 0) { res.innerHTML = "Introduce litros"; res.style.background = "#f0f4f8"; return; }
+        
+        const dosis = l * med.ratio;
+        res.innerHTML = `Dosis: <span style="font-size:1.2rem">${dosis.toFixed(2)}${med.unit}</span>`;
+        
+        // Semáforo Medicación (Rojo si el usuario introduce un volumen que resulta en dosis masiva por error manual)
+        if (dosis > 50) { // Umbral de aviso de seguridad
+            res.style.background = "#f8d7da";
+            res.innerHTML += "<br><small>⚠️ ¡Dosis muy alta! Revisa litros.</small>";
+        } else {
+            res.style.background = "#d4edda";
+        }
+    }
+
+    function autoAbono() {
+        const prod = PRODUCTOS[document.getElementById('prod_tipo').value];
+        const l = parseFloat(document.getElementById('a_litros').value) || 0;
+        const res = document.getElementById('res_abono');
+        if(!prod || l <= 0) return;
+        if(prod.type === 'diff') {
+            document.getElementById('group_obj').style.display = "flex";
+            const h = (JSON.parse(localStorage.getItem('acu_data')) || {})[acuarioActual] || [];
+            const act = (h[h.length-1] || {})[prod.param] || 0;
+            const ml = prod.calc(parseFloat(document.getElementById('a_obj').value) - act, l);
+            res.innerHTML = ml > 0 ? `Dosis: ${ml.toFixed(1)}ml/g` : "OK";
+        } else {
+            document.getElementById('group_obj').style.display = "none";
+            const p = prod.dosis.match(/(\d+)g|ml.*(\d+)L/);
+            const val = (l / parseInt(prod.dosis.split('/')[1])) * parseInt(prod.dosis);
+            res.innerHTML = `Dosis: ${val.toFixed(1)}${prod.dosis.includes('g')?'g':'ml'}`;
+        }
+    }
+
+    function iniciarApp() {
+        const data = JSON.parse(localStorage.getItem('acu_data')) || { "Principal": [] };
+        document.getElementById('selector_acuario').innerHTML = Object.keys(data).map(n => `<option value="${n}" ${n === acuarioActual?'selected':''}>${n}</option>`).join('');
+        const panel = document.getElementById('inputs_dinamicos');
+        Object.keys(CONFIG).forEach(k => {
+            panel.innerHTML += `<div class="input-group"><label>${CONFIG[k].label}</label><input type="number" id="in_${k}" step="0.01" oninput="checkSemaforoInput('${k}', this.value)"></div>`;
+        });
+        document.getElementById('fecha').value = new Date().toISOString().slice(0, 16);
+    }
+
+    function guardarRegistro() {
+        const reg = { 
+            fecha: document.getElementById('fecha').value,
+            co2: document.getElementById('in_co2').value,
+            drop: document.getElementById('in_drop').value,
+            luz_h: document.getElementById('in_luz_h').value,
+            luz_i: document.getElementById('in_luz_i').value,
+            notas: document.getElementById('in_notas').value
+        };
+        Object.keys(CONFIG).forEach(k => reg[k] = parseFloat(document.getElementById('in_'+k).value) || 0);
+        const data = JSON.parse(localStorage.getItem('acu_data')) || { "Principal": [] };
+        data[acuarioActual].push(reg);
+        localStorage.setItem('acu_data', JSON.stringify(data));
+        alert("Guardado");
+    }
+
+    function openTab(id) {
+        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        event.currentTarget.classList.add('active');
+        if(id === 'historial') { renderHistorial(); actualizarGrafica(); }
+    }
+
+    function autoPeces() {
+        const litros = parseFloat(document.getElementById('p_litros').value) || 0;
+        let totalCm = 0;
+        document.querySelectorAll('.fish-row').forEach(row => {
+            totalCm += ((row.querySelector('.f_cant').value || 0) * (row.querySelector('.f_tam').value || 0));
+        });
+        const res = document.getElementById('res_peces');
+        res.innerHTML = `Ocupación: ${totalCm}cm / ${litros}L`;
+        res.style.color = totalCm > litros ? "red" : "green";
+    }
+
+    function addFishRow() {
+        const div = document.createElement('div');
+        div.className = 'fish-row';
+        div.innerHTML = `<input type="number" class="f_cant" placeholder="Nº" oninput="autoPeces()"><input type="number" class="f_tam" placeholder="cm" oninput="autoPeces()"><button onclick="this.parentElement.remove(); autoPeces();">❌</button>`;
+        document.getElementById('contenedor_peces').appendChild(div);
+    }
+
+    function checkSemaforoObj() {
+        const prod = PRODUCTOS[document.getElementById('prod_tipo').value];
+        const obj = document.getElementById('a_obj');
+        if(prod && prod.type === 'diff') {
+            const val = parseFloat(obj.value);
+            obj.style.background = val > prod.safety ? "#ffcccc" : "#d4edda";
+        } else { obj.style.background = "#fff"; }
+    }
+
+    function toggleDropchecker() {
+        const co2 = document.getElementById('in_co2').value;
+        document.getElementById('drop_group').style.display = co2 === 'Sí' ? 'flex' : 'none';
+    }
+
+    function renderHistorial() {
+        const h = (JSON.parse(localStorage.getItem('acu_data')) || {})[acuarioActual] || [];
+        document.getElementById('lista_historial').innerHTML = h.slice().reverse().map(r => `
+            <div style="border-bottom:1px solid #eee; padding:8px;">
+                <b>${r.fecha.replace('T',' ')}</b> | pH:${r.ph} | NO3:${r.no3}
+                ${r.notas ? `<br><small><i>"${r.notas}"</i></small>` : ''}
+            </div>`).join('');
+    }
+
+    function actualizarGrafica() {
+        const h = (JSON.parse(localStorage.getItem('acu_data')) || {})[acuarioActual] || [];
+        if(miGrafica) miGrafica.destroy();
+        const datasets = Object.keys(CONFIG).map((k, i) => ({
+            label: CONFIG[k].label,
+            data: h.map(d => d[k]),
+            borderColor: `hsl(${i * 24}, 70%, 50%)`,
+            hidden: !['ph', 'no3', 'temp'].includes(k),
+            tension: 0.3
+        }));
+        miGrafica = new Chart(document.getElementById('grafica'), {
+            type: 'line',
+            data: { labels: h.map(d => d.fecha.slice(5,10)), datasets },
+            options: { maintainAspectRatio: false }
+        });
+    }
+
+    function exportarCSV() {
+        const data = JSON.parse(localStorage.getItem('acu_data')) || {};
+        let csv = "acuario,fecha,co2,drop,luz_h,luz_i,notas," + Object.keys(CONFIG).join(",") + "\n";
+        Object.keys(data).forEach(a => data[a].forEach(r => {
+            csv += `"${a}","${r.fecha}","${r.co2}","${r.drop}","${r.luz_h}","${r.luz_i}","${(r.notas||'').replace(/"/g,'""')}",${Object.keys(CONFIG).map(k => r[k]||0).join(",")}\n`;
+        }));
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download='Backup_Acuarios.csv'; a.click();
+    }
+
+    function importarCSV(event) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const lines = e.target.result.split('\n'); const newData = {};
+            const keys = Object.keys(CONFIG);
+            for(let i=1; i<lines.length; i++){
+                if(!lines[i].trim()) continue; 
+                const v = lines[i].split(',');
+                const acuName = v[0].replace(/"/g,'');
+                if(!newData[acuName]) newData[acuName] = [];
+                let entry = { fecha: v[1], co2: v[2], drop: v[3], luz_h: v[4], luz_i: v[5], notas: v[6] };
+                keys.forEach((k, idx) => entry[k] = parseFloat(v[idx+7]) || 0);
+                newData[acuName].push(entry);
+            }
+            localStorage.setItem('acu_data', JSON.stringify(newData)); location.reload();
+        };
+        reader.readAsText(event.target.files[0]);
+    }
+
+    function nuevoAcuario() {
+        const n = prompt("Nombre:"); if(n) { 
+            const d = JSON.parse(localStorage.getItem('acu_data')) || {}; d[n] = []; 
+            localStorage.setItem('acu_data', JSON.stringify(d)); location.reload(); 
+        } 
+    }
+
+    function cambiarAcuario() {
+        acuarioActual = document.getElementById('selector_acuario').value;
+        localStorage.setItem('acu_last', acuarioActual);
+    }
+</script>
+</body>
+</html>
