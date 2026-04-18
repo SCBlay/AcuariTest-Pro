@@ -2,7 +2,6 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="https://fav.farm/🐠" /> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AcuariTest Pro - Guppy Master Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -127,6 +126,11 @@
                     <option value="jbl_k">ProScape K</option>
                     <option value="sera_n">Flore N</option>
                 </optgroup>
+                <optgroup label="Sales NPK (Seco)">
+                    <option value="nitrato_k">Nitrato Potásico (KNO3)</option>
+                    <option value="fosfato_k">Fosfato Monopotásico (KH2PO4)</option>
+                    <option value="potasio_k">Sulfato Potásico (K2SO4)</option>
+                </optgroup>
             </select>
         </div>
         <div class="grid-inputs">
@@ -194,10 +198,14 @@
         po4: { label: 'Fosfato', min: 0.1, max: 1.0, crit_min: 0, crit_max: 3.0 },
         k: { label: 'Potasio', min: 5, max: 15, crit_min: 2, crit_max: 30 },
         fe: { label: 'Hierro', min: 0.05, max: 0.2, crit_min: 0, crit_max: 0.5 },
-        tds: { label: 'TDS', min: 200, max: 500, crit_min: 100, crit_max: 800 }
+        tds: { label: 'TDS', min: 200, max: 500, crit_min: 100, crit_max: 800 },
+        cl: { label: 'Cloro', min: 0, max: 0, crit_min: -1, crit_max: 0.1 },
+        si: { label: 'Silicatos', min: 0, max: 1, crit_min: -1, crit_max: 5 },
+        cu: { label: 'Cobre', min: 0, max: 0, crit_min: -1, crit_max: 0.05 }
     };
 
     const PRODUCTOS = {
+        // Líquidos comerciales
         seachem_n: { type: 'diff', param: 'no3', calc: (d, l) => (d * l) / 10.5, safety: 25 },
         seachem_p: { type: 'diff', param: 'po4', calc: (d, l) => (d * l) / 0.19, safety: 2 },
         seachem_k: { type: 'diff', param: 'k', calc: (d, l) => (d * l) / 50, safety: 30 },
@@ -206,12 +214,19 @@
         seachem_builder: { type: 'fixed', label: 'Builder', dosis: '3g / 150L' },
         seachem_excel: { type: 'fixed', label: 'Excel', dosis: '5ml / 200L' },
         seachem_prime: { type: 'fixed', label: 'Prime', dosis: '1ml / 40L' },
+        
+        // Sales NPK (Seco)
+        nitrato_k: { type: 'diff', param: 'no3', calc: (d, l) => (d * l) / 6.1, safety: 50 },
+        fosfato_k: { type: 'diff', param: 'po4', calc: (d, l) => (d * l) / 6.9, safety: 5 },
+        potasio_k: { type: 'diff', param: 'k', calc: (d, l) => (d * l) / 5.7, safety: 50 },
+        
+        // Otros
         jbl_n: { type: 'diff', param: 'no3', calc: (d, l) => (d * l) / 10, safety: 25 },
         sera_n: { type: 'diff', param: 'no3', calc: (d, l) => (d * l) / 5, safety: 25 }
     };
 
     const MEDICAMENTOS = {
-        sera_omnipur: { label: 'Omnipur A', ratio: 1/20, unit: 'ml' }, // 1ml cada 20L
+        sera_omnipur: { label: 'Omnipur A', ratio: 1/20, unit: 'ml' },
         sera_baktopur: { label: 'Baktopur', ratio: 1/20, unit: 'ml' },
         sera_costapur: { label: 'Costapur', ratio: 1/40, unit: 'ml' },
         jbl_punktol: { label: 'Punktol', ratio: 10/100, unit: 'ml' },
@@ -224,15 +239,42 @@
 
     window.onload = () => { iniciarApp(); };
 
-    function checkSemaforoInput(id, val) {
+   function checkSemaforoInput(id, val) {
+    const el = document.getElementById('in_' + id);
+    if (!val) { el.style.background = "#fff"; el.style.color = "#333"; return; }
+    const v = parseFloat(val);
+
+    // Lógica personalizada para Temperatura
+    if (id === 'temp') {
+        if (v >= 24 && v <= 28) { 
+            // Ideal: Verde
+            el.style.background = "#28a745"; el.style.color = "white";
+        } else if (v >= 20 && v < 24) { 
+            // Tolerable frío: Azul
+            el.style.background = "#007bff"; el.style.color = "white";
+        } else if (v < 20) { 
+            // Peligroso/Letal frío: Morado/Azul oscuro
+            el.style.background = "#4b0082"; el.style.color = "white";
+        } else if (v > 28 && v <= 32) { 
+            // Tolerable calor: Naranja
+            el.style.background = "#ff9800"; el.style.color = "white";
+        } else { 
+            // Peligroso/Letal calor: Rojo
+            el.style.background = "#dc3545"; el.style.color = "white";
+        }
+    } 
+    // Lógica estándar para el resto de parámetros (pH, Nitritos, etc.)
+    else {
         const cfg = CONFIG[id];
-        const el = document.getElementById('in_' + id);
-        if (!val) { el.style.background = "#fff"; return; }
-        const v = parseFloat(val);
-        if (v >= cfg.min && v <= cfg.max) el.style.background = "#d4edda";
-        else if (v < cfg.crit_min || v > cfg.crit_max) el.style.background = "#f8d7da";
-        else el.style.background = "#fff3cd";
+        if (v >= cfg.min && v <= cfg.max) {
+            el.style.background = "#d4edda"; el.style.color = "#333";
+        } else if (v < cfg.crit_min || v > cfg.crit_max) {
+            el.style.background = "#f8d7da"; el.style.color = "#333";
+        } else {
+            el.style.background = "#fff3cd"; el.style.color = "#333";
+        }
     }
+}
 
     function autoLitros() {
         const neto = ((document.getElementById('l_a').value || 0) * (document.getElementById('l_f').value || 0) * (document.getElementById('l_h').value || 0) / 1000) * 0.85;
@@ -249,12 +291,9 @@
         const l = parseFloat(document.getElementById('med_litros').value) || 0;
         const res = document.getElementById('res_med');
         if(l <= 0) { res.innerHTML = "Introduce litros"; res.style.background = "#f0f4f8"; return; }
-        
         const dosis = l * med.ratio;
         res.innerHTML = `Dosis: <span style="font-size:1.2rem">${dosis.toFixed(2)}${med.unit}</span>`;
-        
-        // Semáforo Medicación (Rojo si el usuario introduce un volumen que resulta en dosis masiva por error manual)
-        if (dosis > 50) { // Umbral de aviso de seguridad
+        if (dosis > 50) { 
             res.style.background = "#f8d7da";
             res.innerHTML += "<br><small>⚠️ ¡Dosis muy alta! Revisa litros.</small>";
         } else {
@@ -275,7 +314,6 @@
             res.innerHTML = ml > 0 ? `Dosis: ${ml.toFixed(1)}ml/g` : "OK";
         } else {
             document.getElementById('group_obj').style.display = "none";
-            const p = prod.dosis.match(/(\d+)g|ml.*(\d+)L/);
             const val = (l / parseInt(prod.dosis.split('/')[1])) * parseInt(prod.dosis);
             res.innerHTML = `Dosis: ${val.toFixed(1)}${prod.dosis.includes('g')?'g':'ml'}`;
         }
@@ -283,12 +321,20 @@
 
     function iniciarApp() {
         const data = JSON.parse(localStorage.getItem('acu_data')) || { "Principal": [] };
+        
+        // CORRECCIÓN AQUÍ: Asegúrate de que termina en `.join('')` y usa backticks correctamente
         document.getElementById('selector_acuario').innerHTML = Object.keys(data).map(n => `<option value="${n}" ${n === acuarioActual?'selected':''}>${n}</option>`).join('');
+        
         const panel = document.getElementById('inputs_dinamicos');
         Object.keys(CONFIG).forEach(k => {
             panel.innerHTML += `<div class="input-group"><label>${CONFIG[k].label}</label><input type="number" id="in_${k}" step="0.01" oninput="checkSemaforoInput('${k}', this.value)"></div>`;
         });
-        document.getElementById('fecha').value = new Date().toISOString().slice(0, 16);
+        
+        // Corrección de fecha y hora local
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        const localDate = new Date(now.getTime() - (offset * 60000)).toISOString().slice(0, 16);
+        document.getElementById('fecha').value = localDate;
     }
 
     function guardarRegistro() {
